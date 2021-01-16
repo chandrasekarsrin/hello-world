@@ -1,0 +1,86 @@
+version: 0.2 # REQUIRED
+
+timeoutInMills: 10000                                       # timeout spec level.
+runas: Linux-user-name                             # runas default linux user. can be overridden at every step level.
+shell: bash # /bin/sh, /bin/ksh                    # shell: default shell type. can be overridden at evey step level.
+
+env:
+  variables:
+    Key1: "value"
+    Key2: "value"
+  vaultVariables:
+    Key3: "secret-id" # secret-id (in OCI ID format) STORED IN OCI Vault Service
+
+phases:
+  - name: install maven & gradle
+    shell: bash   # optional to override at phase level
+    timeout: 650  # optional to override at phase level
+    runas: Linux-user-name # optional to override at phase level
+    steps:
+      - type: Commands # required. predefined, currently supporting [Commands | DockerRun]
+        name: Step Name # optional. its friendly display name.
+        commands: apt-get install -y maven  # required. either single line string or multi line commands.
+        timeout: 300  # optional to override at step level
+        shell: bash   # optional to override at step level
+        runas: root   # optional to override at step level
+      - type: Commands
+        commands: apt-get install -y gradle
+        timeout: 310
+        runas: root
+    onFailure:
+      - type: Commands
+        commands: |
+          echo "Handling failure"
+          echo "Failure Successfully handled"
+        timeout: 400
+        runas: root
+  - name: build gradle
+    steps:
+      - type: Commands
+        commands: ./gradlew clean build
+        timeout: 300
+        runas: root
+    onFailure:
+      - type: Commands
+        commands: |
+          echo "Handling Failure"
+          echo "Failure successfully handled"
+        timeout: 400
+        runas: root
+  - name: build maven
+    steps:
+      - type: Commands
+        commands: |
+          mvn clean test
+          mvn clean package
+        timeout: 300
+        runas: root
+    onFailure:
+      - type: Commands
+        commands: |
+          echo "Handling Failure"
+          echo "Failure successfully handled"
+        timeout: 400
+        runas: root
+  - name: custom docker step
+    steps:
+      - type: DockerRun
+        dockerImageUrl: <docker-url>
+        entrypoint: command
+        args: [arg1, arg2]
+    onFailure:
+      - type: Commands
+        commands: |
+          echo "Handling Failure"
+          echo "Failure successfully handled"
+        timeout: 400
+        runas: root
+
+artifacts:
+  - name: artifact-name # Eg: foo-java-app
+    type: artifact-type # Enum: [binary, report, docker-image]
+    files:
+      - location # Eg: libs/lib1.jar
+      - location # Eg: bin/run.sh
+    ignore-paths: no | yes
+    base-directory: location #Eg: ./buildout
